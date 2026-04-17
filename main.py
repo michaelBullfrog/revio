@@ -574,6 +574,45 @@ def update_revio_customer(customer_id: str, inputs: dict):
     return r.json() if r.text.strip() else {"ok": True}
 
 
+def format_customer_details(customer: dict) -> str:
+    address = customer.get("address") or {}
+    emails = customer.get("emailAddresses") or []
+
+    address_lines = []
+    if address.get("addressLine1"):
+        address_lines.append(address.get("addressLine1"))
+    if address.get("addressLine2"):
+        address_lines.append(address.get("addressLine2"))
+
+    city = address.get("cityMunicipality") or ""
+    state = address.get("stateProvinceCode") or ""
+    postal = address.get("postalCode") or ""
+
+    city_state = ", ".join([part for part in [city, state] if part])
+    city_line = f"{city_state} {postal}".strip() if postal else city_state
+    if city_line:
+        address_lines.append(city_line)
+    if address.get("countryCode"):
+        address_lines.append(address.get("countryCode"))
+
+    formatted_address = "\n".join(address_lines) if address_lines else "N/A"
+
+    return (
+        "Customer Details\n\n"
+        f"Customer ID: {customer.get('customerId', 'N/A')}\n"
+        f"Name: {customer.get('name') or 'N/A'}\n"
+        f"Account Number: {customer.get('accountNumber') or 'N/A'}\n"
+        f"Identity: {customer.get('identity') or 'N/A'}\n"
+        f"Type: {customer.get('type') or 'N/A'}\n"
+        f"Status: {customer.get('status') or 'N/A'}\n"
+        f"Email: {', '.join(emails) if emails else 'N/A'}\n"
+        f"Website: {customer.get('website') or 'N/A'}\n"
+        f"Bill Profile ID: {customer.get('billProfileId') or 'N/A'}\n"
+        f"Parent Customer ID: {customer.get('parentCustomerId') or 'N/A'}\n\n"
+        f"Address\n{formatted_address}"
+    )
+
+
 @app.on_event("startup")
 def startup_event():
     try:
@@ -831,20 +870,8 @@ async def webex_webhook(request: Request):
                 if original_message_id:
                     delete_webex_message(original_message_id)
 
-                summary = {
-                    "customerId": result.get("customerId"),
-                    "accountNumber": result.get("accountNumber"),
-                    "name": result.get("name"),
-                    "identity": result.get("identity"),
-                    "type": result.get("type"),
-                    "status": result.get("status"),
-                    "emailAddresses": result.get("emailAddresses"),
-                    "website": result.get("website"),
-                    "billProfileId": result.get("billProfileId"),
-                    "parentCustomerId": result.get("parentCustomerId"),
-                    "address": result.get("address"),
-                }
-                post_webex_message(room_id, f"Customer details:\n{json.dumps(summary, indent=2)}")
+                formatted = format_customer_details(result)
+                post_webex_message(room_id, formatted)
                 return {"ok": True, "type": "attachmentAction", "result": result}
             except Exception as e:
                 print(f"[ERROR] Rev.io get customer failed: {e}")
