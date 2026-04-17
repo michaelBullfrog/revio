@@ -495,7 +495,15 @@ async def webex_webhook(request: Request):
         if action_name == "submit_create_opportunity":
             try:
                 result = create_revio_opportunity(inputs)
-                opportunity_id = result.get("id") or result.get("opportunity_id") or result.get("Id") or "created"
+                print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
+
+                opportunity_id = (
+                    result.get("id")
+                    or result.get("Id")
+                    or result.get("opportunity_id")
+                    or result.get("OpportunityId")
+                )
+                print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
                 if original_message_id:
                     delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity created successfully. Opportunity ID: {opportunity_id}")
