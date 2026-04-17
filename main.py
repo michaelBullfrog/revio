@@ -370,7 +370,17 @@ def create_revio_opportunity(inputs: dict):
 
     return result
 
+def get_revio_opportunity(opportunity_id: str):
+    headers = get_psa_headers()
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities/{opportunity_id}"
 
+    print(f"[DEBUG] Get opportunity URL: {url}")
+
+    r = requests.get(url, headers=headers, timeout=30)
+    print(f"[DEBUG] Get opportunity status: {r.status_code}")
+    print(f"[DEBUG] Get opportunity response: {r.text[:4000]}")
+    r.raise_for_status()
+    return r.json()
 
 def update_revio_opportunity(opportunity_id: str, inputs: dict):
     headers = get_psa_headers()
@@ -493,30 +503,40 @@ async def webex_webhook(request: Request):
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "submit_create_opportunity":
-            try:
-                result = create_revio_opportunity(inputs)
-                print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
+    try:
+        result = create_revio_opportunity(inputs)
+        print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
 
-                opportunity_id = (
-                    result.get("id")
-                    or result.get("Id")
-                    or result.get("opportunity_id")
-                    or result.get("OpportunityId")
-                    or result.get("data", {}).get("id")
-                    or result.get("data", {}).get("Id")
-                    or result.get("data", {}).get("opportunityId")
-                    or result.get("data", {}).get("OpportunityId")
-                )
+        opportunity_id = (
+            result.get("id")
+            or result.get("Id")
+            or result.get("opportunity_id")
+            or result.get("OpportunityId")
+            or result.get("data", {}).get("id")
+            or result.get("data", {}).get("Id")
+            or result.get("data", {}).get("opportunityId")
+            or result.get("data", {}).get("OpportunityId")
+        )
 
-print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
-                if original_message_id:
-                    delete_webex_message(original_message_id)
-                post_webex_message(room_id, f"Opportunity created successfully. Opportunity ID: {opportunity_id}")
-                return {"ok": True, "type": "attachmentAction", "result": result}
-            except Exception as e:
-                print(f"[ERROR] Rev.io create opportunity failed: {e}")
-                post_webex_message(room_id, f"Opportunity creation failed. Error: {str(e)[:400]}")
-                return {"ok": False, "error": str(e)}
+        print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
+
+        record = None
+        if opportunity_id:
+            record = get_revio_opportunity(opportunity_id)
+            print(f"[DEBUG] Saved opportunity record: {json.dumps(record)}", flush=True)
+
+        if original_message_id:
+            delete_webex_message(original_message_id)
+
+        post_webex_message(
+            room_id,
+            f"Opportunity created successfully. Opportunity ID: {opportunity_id or 'not returned in create response'}"
+        )
+        return {"ok": True, "type": "attachmentAction", "result": result, "record": record}
+    except Exception as e:
+        print(f"[ERROR] Rev.io create opportunity failed: {e}")
+        post_webex_message(room_id, f"Opportunity creation failed. Error: {str(e)[:400]}")
+        return {"ok": False, "error": str(e)}
 
         if action_name == "submit_update_opportunity":
             opportunity_id = clean_value(inputs.get("opportunity_id"))
