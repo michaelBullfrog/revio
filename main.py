@@ -288,6 +288,7 @@ def to_int_or_none(value):
     except (TypeError, ValueError):
         return None
 
+
 def to_float_or_none(value):
     value = clean_value(value)
     if value is None:
@@ -297,11 +298,12 @@ def to_float_or_none(value):
     except (TypeError, ValueError):
         return None
 
+
 def build_opportunity_payload(inputs: dict):
     payload = {
         "Name": clean_value(inputs.get("name")),
         "CustomerId": to_int_or_none(inputs.get("customer_id")),
-        "Amount": to_float_or_none(inputs.get("amount")),
+        "ExpectedAmount": to_float_or_none(inputs.get("amount")),
         "Notes": clean_value(inputs.get("notes")),
     }
 
