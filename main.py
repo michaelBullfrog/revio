@@ -213,9 +213,9 @@ def post_create_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "name", "label": "Opportunity Name"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
             {"type": "Input.Text", "id": "amount", "label": "Expected Amount"},
-            {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
-            {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
-            {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
+            {"type": "Input.Text", "id": "stage_id", "label": "Stage ID", "value": "1"},
+            {"type": "Input.Text", "id": "status_id", "label": "Status ID", "value": "1"},
+            {"type": "Input.Text", "id": "type_id", "label": "Type ID", "value": "1"},
         ],
         "actions": [
             {
