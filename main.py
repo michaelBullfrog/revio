@@ -255,18 +255,16 @@ def post_delete_opportunity_card(room_id: str):
 
 
 def post_create_customer_card(room_id: str):
-    # These field names are a best-effort mapping and may need minor adjustment
-    # if your Rev.io tenant expects a different customer request schema.
     card_content = {
         "type": "AdaptiveCard",
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.3",
         "body": [
             {"type": "TextBlock", "text": "Create Customer", "weight": "Bolder", "size": "Large"},
-            {"type": "Input.Text", "id": "name", "label": "Customer Name"},
+            {"type": "Input.Text", "id": "name", "label": "Name"},
             {"type": "Input.Text", "id": "display_name", "label": "Display Name"},
-            {"type": "Input.Text", "id": "email", "label": "Email"},
-            {"type": "Input.Text", "id": "phone", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
+            {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
             {"type": "Input.Text", "id": "customer_type_id", "label": "Customer Type ID"},
         ],
         "actions": [
@@ -284,10 +282,10 @@ def post_update_customer_card(room_id: str):
         "body": [
             {"type": "TextBlock", "text": "Update Customer", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "name", "label": "Customer Name"},
+            {"type": "Input.Text", "id": "name", "label": "Name"},
             {"type": "Input.Text", "id": "display_name", "label": "Display Name"},
-            {"type": "Input.Text", "id": "email", "label": "Email"},
-            {"type": "Input.Text", "id": "phone", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
+            {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
             {"type": "Input.Text", "id": "customer_type_id", "label": "Customer Type ID"},
         ],
         "actions": [
@@ -418,13 +416,11 @@ def build_opportunity_payload(inputs: dict):
 
 
 def build_customer_payload(inputs: dict):
-    # Best-effort field mapping. If your tenant expects different field names,
-    # adjust them here after testing against the live validation response.
     payload = {
         "Name": clean_value(inputs.get("name")),
         "DisplayName": clean_value(inputs.get("display_name")),
-        "EmailAddress": clean_value(inputs.get("email")),
-        "PhoneNumber": clean_value(inputs.get("phone")),
+        "EmailAddress": clean_value(inputs.get("email_address")),
+        "PhoneNumber": clean_value(inputs.get("phone_number")),
         "CustomerTypeId": to_int_or_none(inputs.get("customer_type_id")),
     }
     return {k: v for k, v in payload.items() if v is not None}
