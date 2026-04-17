@@ -288,17 +288,33 @@ def to_int_or_none(value):
     except (TypeError, ValueError):
         return None
 
+def to_float_or_none(value):
+    value = clean_value(value)
+    if value is None:
+        return None
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
 
 def build_opportunity_payload(inputs: dict):
     payload = {
         "Name": clean_value(inputs.get("name")),
         "CustomerId": to_int_or_none(inputs.get("customer_id")),
-        "Amount": to_int_or_none(inputs.get("amount")),
-        "StageId": to_int_or_none(inputs.get("stage_id")),
-        "StatusId": to_int_or_none(inputs.get("status_id")),
-        "TypeId": to_int_or_none(inputs.get("type_id")),
+        "Amount": to_float_or_none(inputs.get("amount")),
         "Notes": clean_value(inputs.get("notes")),
     }
+
+    for form_key, api_key in [
+        ("stage_id", "StageId"),
+        ("status_id", "StatusId"),
+        ("type_id", "TypeId"),
+        ("source_id", "SourceId"),
+    ]:
+        value = to_int_or_none(inputs.get(form_key))
+        if value and value > 0:
+            payload[api_key] = value
+
     return {k: v for k, v in payload.items() if v is not None}
 
 
