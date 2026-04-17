@@ -262,6 +262,7 @@ def post_create_customer_card(room_id: str):
         "body": [
             {"type": "TextBlock", "text": "Create Customer", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "name", "label": "Name"},
+            {"type": "Input.Text", "id": "company_name", "label": "Company Name"},
             {"type": "Input.Text", "id": "identity", "label": "Identity", "value": "Business"},
             {"type": "Input.Text", "id": "type", "label": "Type", "value": "Customer"},
             {"type": "Input.Text", "id": "status", "label": "Status", "value": "Open"},
@@ -429,6 +430,7 @@ def build_customer_payload(inputs: dict):
 
     payload = {
         "name": clean_value(inputs.get("name")),
+        "companyName": clean_value(inputs.get("company_name")),
         "identity": clean_value(inputs.get("identity")) or "Business",
         "type": clean_value(inputs.get("type")) or "Customer",
         "status": clean_value(inputs.get("status")) or "Open",
