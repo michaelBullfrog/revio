@@ -292,21 +292,7 @@ def post_update_customer_card(room_id: str):
         "body": [
             {"type": "TextBlock", "text": "Update Customer", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "name", "label": "Name"},
-            {"type": "Input.Text", "id": "company_name", "label": "Company Name"},
-            {"type": "Input.Text", "id": "identity", "label": "Identity", "value": "Business"},
-            {"type": "Input.Text", "id": "type", "label": "Type", "value": "Customer"},
-            {"type": "Input.Text", "id": "status", "label": "Status", "value": "Open"},
-            {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
-            {"type": "Input.Text", "id": "address_line_1", "label": "Address Line 1"},
-            {"type": "Input.Text", "id": "address_line_2", "label": "Address Line 2"},
-            {"type": "Input.Text", "id": "city", "label": "City"},
-            {"type": "Input.Text", "id": "state", "label": "State"},
-            {"type": "Input.Text", "id": "postal_code", "label": "Postal Code"},
-            {"type": "Input.Text", "id": "country_code", "label": "Country Code", "value": "USA"},
-            {"type": "Input.Text", "id": "website", "label": "Website"},
             {"type": "Input.Text", "id": "bill_profile_id", "label": "Bill Profile ID", "value": "1002"},
-            {"type": "Input.Text", "id": "parent_customer_id", "label": "Parent Customer ID"},
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Update Customer", "data": {"action": "submit_update_customer"}}
@@ -577,9 +563,30 @@ def get_revio_customer(customer_id: str):
     return r.json()
 
 
+def build_update_customer_payload(existing_customer: dict, inputs: dict):
+    payload = {
+        "name": existing_customer.get("name"),
+        "companyName": existing_customer.get("companyName") or existing_customer.get("name"),
+        "identity": existing_customer.get("identity"),
+        "type": existing_customer.get("type"),
+        "status": existing_customer.get("status"),
+        "address": existing_customer.get("address"),
+        "website": existing_customer.get("website"),
+        "billProfileId": to_int_or_none(inputs.get("bill_profile_id")) or existing_customer.get("billProfileId"),
+        "parentCustomerId": existing_customer.get("parentCustomerId"),
+    }
+
+    emails = existing_customer.get("emailAddresses") or []
+    if emails:
+        payload["emailAddresses"] = emails
+
+    return {k: v for k, v in payload.items() if v is not None}
+
+
 def update_revio_customer(customer_id: str, inputs: dict):
     headers = get_psa_headers()
-    payload = build_customer_payload(inputs)
+    existing_customer = get_revio_customer(customer_id)
+    payload = build_update_customer_payload(existing_customer, inputs)
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers/{customer_id}"
 
     print(f"[DEBUG] Update customer URL: {url}")
