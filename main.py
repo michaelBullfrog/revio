@@ -166,6 +166,7 @@ def post_opportunity_menu_card(room_id: str):
         "actions": [
             {"type": "Action.Submit", "title": "Create Opportunity", "data": {"action": "show_create_opportunity"}},
             {"type": "Action.Submit", "title": "Update Opportunity", "data": {"action": "show_update_opportunity"}},
+            {"type": "Action.Submit", "title": "Get Opportunity", "data": {"action": "show_get_opportunity"}},
             {"type": "Action.Submit", "title": "Delete Opportunity", "data": {"action": "show_delete_opportunity"}},
         ],
     }
@@ -235,6 +236,22 @@ def post_update_opportunity_card(room_id: str):
         ],
     }
     return post_webex_card(room_id, "Update opportunity form", card_content)
+
+
+def post_get_opportunity_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Get Opportunity", "weight": "Bolder", "size": "Large"},
+            {"type": "Input.Text", "id": "opportunity_id", "label": "Opportunity ID"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Get Opportunity", "data": {"action": "submit_get_opportunity"}}
+        ],
+    }
+    return post_webex_card(room_id, "Get opportunity form", card_content)
 
 
 def post_delete_opportunity_card(room_id: str):
@@ -623,6 +640,20 @@ def format_customer_details(customer: dict) -> str:
     )
 
 
+def format_opportunity_details(opportunity: dict) -> str:
+    return (
+        "Opportunity Details\n\n"
+        f"Opportunity ID: {opportunity.get('opportunityId') or opportunity.get('id') or opportunity.get('Id') or 'N/A'}\n"
+        f"Name: {opportunity.get('name') or opportunity.get('Name') or 'N/A'}\n"
+        f"Customer ID: {opportunity.get('customerId') or opportunity.get('CustomerId') or 'N/A'}\n"
+        f"Expected Amount: {opportunity.get('expectedAmount') or opportunity.get('ExpectedAmount') or 'N/A'}\n"
+        f"Stage ID: {opportunity.get('stageId') or opportunity.get('StageId') or 'N/A'}\n"
+        f"Status ID: {opportunity.get('statusId') or opportunity.get('StatusId') or 'N/A'}\n"
+        f"Type ID: {opportunity.get('typeId') or opportunity.get('TypeId') or 'N/A'}\n"
+        f"Source ID: {opportunity.get('sourceId') or opportunity.get('SourceId') or 'N/A'}"
+    )
+
+
 @app.on_event("startup")
 def startup_event():
     try:
@@ -728,6 +759,12 @@ async def webex_webhook(request: Request):
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
+        if action_name == "show_get_opportunity":
+            post_get_opportunity_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
         if action_name == "show_delete_opportunity":
             post_delete_opportunity_card(room_id)
             if original_message_id:
@@ -798,6 +835,25 @@ async def webex_webhook(request: Request):
             except Exception as e:
                 print(f"[ERROR] Rev.io update opportunity failed: {e}")
                 post_webex_message(room_id, f"Opportunity update failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_get_opportunity":
+            opportunity_id = clean_value(inputs.get("opportunity_id"))
+            if not opportunity_id:
+                post_webex_message(room_id, "Get opportunity failed. Opportunity ID is required.")
+                return {"ok": False, "error": "Missing opportunity ID"}
+
+            try:
+                result = get_revio_opportunity(opportunity_id)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+
+                formatted = format_opportunity_details(result)
+                post_webex_message(room_id, formatted)
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io get opportunity failed: {e}")
+                post_webex_message(room_id, f"Get opportunity failed. Error: {str(e)[:400]}")
                 return {"ok": False, "error": str(e)}
 
         if action_name == "submit_delete_opportunity":
