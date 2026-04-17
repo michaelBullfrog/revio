@@ -95,6 +95,74 @@ def post_webex_card(room_id: str, fallback_text: str, card_content: dict):
     return r.json()
 
 
+def post_main_menu_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "Bullfrog Bot Menu",
+                "weight": "Bolder",
+                "size": "Large",
+            },
+            {
+                "type": "TextBlock",
+                "text": "Choose an option below.",
+                "wrap": True,
+                "spacing": "Small",
+            },
+        ],
+        "actions": [
+            {
+                "type": "Action.Submit",
+                "title": "Opportunities",
+                "data": {"action": "show_opportunities_menu"},
+            },
+            {
+                "type": "Action.Submit",
+                "title": "Help",
+                "data": {"action": "show_help_menu"},
+            },
+        ],
+    }
+    return post_webex_card(room_id, "Bot menu", card_content)
+
+
+def post_help_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {
+                "type": "TextBlock",
+                "text": "Available Commands",
+                "weight": "Bolder",
+                "size": "Large",
+            },
+            {
+                "type": "TextBlock",
+                "text": (
+                    "• Opportunities - Open the opportunities menu\n"
+                    "• Help - Show available commands\n"
+                    "• Mention the bot - Show this menu card"
+                ),
+                "wrap": True,
+            },
+        ],
+        "actions": [
+            {
+                "type": "Action.Submit",
+                "title": "Open Opportunities",
+                "data": {"action": "show_opportunities_menu"},
+            }
+        ],
+    }
+    return post_webex_card(room_id, "Help menu", card_content)
+
+
 def post_opportunity_menu_card(room_id: str):
     card_content = {
         "type": "AdaptiveCard",
@@ -148,7 +216,6 @@ def post_create_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
-            {"type": "Input.Text", "id": "notes", "label": "Notes", "isMultiline": True},
         ],
         "actions": [
             {
@@ -167,7 +234,7 @@ def post_update_opportunity_card(room_id: str):
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.3",
         "body": [
-            {"type": "TextBlock", "text": "Update ity", "weight": "Bolder", "size": "Large"},
+            {"type": "TextBlock", "text": "Update Opportunity", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "opportunity_id", "label": "Opportunity ID"},
             {"type": "Input.Text", "id": "name", "label": "Opportunity Name"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
@@ -175,7 +242,6 @@ def post_update_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
-            {"type": "Input.Text", "id": "notes", "label": "Notes", "isMultiline": True},
         ],
         "actions": [
             {
@@ -297,7 +363,6 @@ def build_opportunity_payload(inputs: dict):
         "Name": clean_value(inputs.get("name")),
         "CustomerId": to_int_or_none(inputs.get("customer_id")),
         "ExpectedAmount": to_float_or_none(inputs.get("amount")),
-        "Notes": clean_value(inputs.get("notes")),
     }
 
     for form_key, api_key in [
@@ -436,13 +501,19 @@ async def webex_webhook(request: Request):
 
         msg = get_message(message_id)
         text = (msg.get("text") or "").strip().lower()
+        mentioned_people = msg.get("mentionedPeople") or []
+        bot_was_mentioned = BOT_PERSON_ID in mentioned_people
 
-        if text == "opportunities":
+        if bot_was_mentioned:
+            post_main_menu_card(room_id)
+        elif text == "help":
+            post_help_card(room_id)
+        elif text == "opportunities":
             post_opportunity_menu_card(room_id)
         else:
             post_webex_message(
                 room_id,
-                "Say 'Opportunities' to manage opportunities.",
+                "Unknown command. Mention me or say 'Opportunities' to get started.",
             )
 
         return {"ok": True, "type": "message"}
@@ -462,6 +533,18 @@ async def webex_webhook(request: Request):
 
         if not room_id:
             return {"ok": False, "error": "Missing roomId"}
+
+        if action_name == "show_opportunities_menu":
+            post_opportunity_menu_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_help_menu":
+            post_help_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "show_create_opportunity":
             post_create_opportunity_card(room_id)
