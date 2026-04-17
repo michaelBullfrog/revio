@@ -167,7 +167,7 @@ def post_update_opportunity_card(room_id: str):
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.3",
         "body": [
-            {"type": "TextBlock", "text": "Update Opportunity", "weight": "Bolder", "size": "Large"},
+            {"type": "TextBlock", "text": "Update ity", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "opportunity_id", "label": "Opportunity ID"},
             {"type": "Input.Text", "id": "name", "label": "Opportunity Name"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
@@ -342,7 +342,24 @@ def create_revio_opportunity(inputs: dict):
     if not r.ok:
         raise Exception(f"Rev.io create opportunity {r.status_code}: {r.text[:1500]}")
 
-    return r.json() if r.text.strip() else {"ok": True}
+    result = r.json() if r.text.strip() else {"ok": True}
+
+    opportunity_id = (
+        result.get("opportunityId")
+        or result.get("OpportunityId")
+        or result.get("id")
+        or result.get("Id")
+        or result.get("opportunity_id")
+    )
+
+    if opportunity_id:
+        try:
+            saved_record = get_revio_opportunity(str(opportunity_id))
+            print(f"[DEBUG] Saved opportunity record: {json.dumps(saved_record)}")
+        except Exception as fetch_error:
+            print(f"[ERROR] Failed to fetch created opportunity: {fetch_error}")
+
+    return result
 
 
 def update_revio_opportunity(opportunity_id: str, inputs: dict):
@@ -470,14 +487,15 @@ async def webex_webhook(request: Request):
                 print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
 
                 opportunity_id = (
-                    result.get("id")
+                    result.get("opportunityId")
+                    or result.get("OpportunityId")
+                    or result.get("id")
                     or result.get("Id")
                     or result.get("opportunity_id")
-                    or result.get("OpportunityId")
-                    or result.get("data", {}).get("id")
-                    or result.get("data", {}).get("Id")
                     or result.get("data", {}).get("opportunityId")
                     or result.get("data", {}).get("OpportunityId")
+                    or result.get("data", {}).get("id")
+                    or result.get("data", {}).get("Id")
                 )
 
                 print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
