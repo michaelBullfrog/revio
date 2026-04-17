@@ -281,16 +281,26 @@ def clean_value(value):
 
 
 
+def to_int_or_none(value):
+    value = clean_value(value)
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
 def build_opportunity_payload(inputs: dict):
     payload = {
-        "name": clean_value(inputs.get("name")),
-        "customer_id": clean_value(inputs.get("customer_id")),
-        "amount": clean_value(inputs.get("amount")),
-        "stage_id": clean_value(inputs.get("stage_id")),
-        "status_id": clean_value(inputs.get("status_id")),
-        "type_id": clean_value(inputs.get("type_id")),
-        "source_id": clean_value(inputs.get("source_id")),
-        "notes": clean_value(inputs.get("notes")),
+        "Name": clean_value(inputs.get("name")),
+        "CustomerId": to_int_or_none(inputs.get("customer_id")),
+        "Amount": to_int_or_none(inputs.get("amount")),
+        "StageId": to_int_or_none(inputs.get("stage_id")),
+        "StatusId": to_int_or_none(inputs.get("status_id")),
+        "TypeId": to_int_or_none(inputs.get("type_id")),
+        "SourceId": to_int_or_none(inputs.get("source_id")),
+        "Notes": clean_value(inputs.get("notes")),
     }
     return {k: v for k, v in payload.items() if v is not None}
 
