@@ -60,6 +60,15 @@ def post_webex_message(room_id: str, text: str):
     r.raise_for_status()
     return r.json()
 
+def delete_webex_message(message_id: str):
+    r = requests.delete(
+        f"https://webexapis.com/v1/messages/{message_id}",
+        headers={"Authorization": f"Bearer {WEBEX_BOT_TOKEN}"},
+        timeout=30,
+    )
+    print(f"[DEBUG] Delete message status: {r.status_code}")
+    print(f"[DEBUG] Delete message response: {r.text[:1000]}")
+    return r
 
 def post_webex_card(room_id: str, fallback_text: str, card_content: dict):
     payload = {
@@ -398,6 +407,9 @@ async def webex_webhook(request: Request):
             return {"ok": False, "error": "Missing action ID"}
 
         action = get_attachment_action(action_id)
+        print(f"[DEBUG] Full attachment action: {json.dumps(action)}", flush=True)
+        original_message_id = action.get("messageId")
+        
         inputs = action.get("inputs", {})
         room_id = action.get("roomId")
         action_name = inputs.get("action")
@@ -407,20 +419,28 @@ async def webex_webhook(request: Request):
 
         if action_name == "show_create_opportunity":
             post_create_opportunity_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "show_update_opportunity":
             post_update_opportunity_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "show_delete_opportunity":
             post_delete_opportunity_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "submit_create_opportunity":
             try:
                 result = create_revio_opportunity(inputs)
                 opportunity_id = result.get("id") or result.get("opportunity_id") or "created"
+                if original_message_id:
+                    delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity created successfully. Opportunity ID: {opportunity_id}")
                 return {"ok": True, "type": "attachmentAction", "result": result}
             except Exception as e:
