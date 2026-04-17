@@ -60,6 +60,7 @@ def post_webex_message(room_id: str, text: str):
     r.raise_for_status()
     return r.json()
 
+
 def delete_webex_message(message_id: str):
     r = requests.delete(
         f"https://webexapis.com/v1/messages/{message_id}",
@@ -69,6 +70,7 @@ def delete_webex_message(message_id: str):
     print(f"[DEBUG] Delete message status: {r.status_code}")
     print(f"[DEBUG] Delete message response: {r.text[:1000]}")
     return r
+
 
 def post_webex_card(room_id: str, fallback_text: str, card_content: dict):
     payload = {
@@ -143,7 +145,7 @@ def post_create_opportunity_card(room_id: str):
             {"type": "TextBlock", "text": "Create Opportunity", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "name", "label": "Opportunity Name"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "amount", "label": "Amount"},
+            {"type": "Input.Text", "id": "amount", "label": "Expected Amount"},
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
@@ -171,7 +173,7 @@ def post_update_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "opportunity_id", "label": "Opportunity ID"},
             {"type": "Input.Text", "id": "name", "label": "Opportunity Name"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "amount", "label": "Amount"},
+            {"type": "Input.Text", "id": "amount", "label": "Expected Amount"},
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
@@ -289,6 +291,7 @@ def to_int_or_none(value):
         return None
 
 
+
 def to_float_or_none(value):
     value = clean_value(value)
     if value is None:
@@ -297,6 +300,7 @@ def to_float_or_none(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+
 
 
 def build_opportunity_payload(inputs: dict):
@@ -321,13 +325,31 @@ def build_opportunity_payload(inputs: dict):
 
 
 
+def get_revio_opportunity(opportunity_id: str):
+    headers = get_psa_headers()
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities/{opportunity_id}"
+
+    print(f"[DEBUG] Get opportunity URL: {url}")
+
+    r = requests.get(url, headers=headers, timeout=30)
+    print(f"[DEBUG] Get opportunity status: {r.status_code}")
+    print(f"[DEBUG] Get opportunity response: {r.text[:4000]}")
+
+    if not r.ok:
+        raise Exception(f"Rev.io get opportunity {r.status_code}: {r.text[:1500]}")
+
+    return r.json()
+
+
+
 def create_revio_opportunity(inputs: dict):
     headers = get_psa_headers()
     payload = build_opportunity_payload(inputs)
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities"
 
     print(f"[DEBUG] Create opportunity URL: {url}")
-    print(f"[DEBUG] Create opportunity payload: {json.dumps(payload)}")
+    print(f"[DEBUG] Final create payload: {json.dumps(payload)}")
+    print(f"[DEBUG] Type of ExpectedAmount: {type(payload.get('ExpectedAmount'))}")
 
     r = requests.post(url, headers=headers, json=payload, timeout=30)
     print(f"[DEBUG] Create opportunity status: {r.status_code}")
@@ -336,7 +358,17 @@ def create_revio_opportunity(inputs: dict):
     if not r.ok:
         raise Exception(f"Rev.io create opportunity {r.status_code}: {r.text[:1500]}")
 
-    return r.json() if r.text.strip() else {"ok": True}
+    result = r.json() if r.text.strip() else {"ok": True}
+
+    opportunity_id = result.get("id") or result.get("opportunity_id") or result.get("Id")
+    if opportunity_id:
+        try:
+            saved_record = get_revio_opportunity(str(opportunity_id))
+            print(f"[DEBUG] Saved opportunity record: {json.dumps(saved_record)}")
+        except Exception as fetch_error:
+            print(f"[ERROR] Failed to fetch created opportunity: {fetch_error}")
+
+    return result
 
 
 
@@ -416,12 +448,12 @@ async def webex_webhook(request: Request):
         msg = get_message(message_id)
         text = (msg.get("text") or "").strip().lower()
 
-        if text in ["bot opprotunities", "bot opportunities"]:
+        if text == "opportunities":
             post_opportunity_menu_card(room_id)
         else:
             post_webex_message(
                 room_id,
-                "Say 'Bot opprotunities' to manage opportunities.",
+                "Say 'Opportunities' to manage opportunities.",
             )
 
         return {"ok": True, "type": "message"}
@@ -434,7 +466,7 @@ async def webex_webhook(request: Request):
         action = get_attachment_action(action_id)
         print(f"[DEBUG] Full attachment action: {json.dumps(action)}", flush=True)
         original_message_id = action.get("messageId")
-        
+
         inputs = action.get("inputs", {})
         room_id = action.get("roomId")
         action_name = inputs.get("action")
@@ -463,7 +495,7 @@ async def webex_webhook(request: Request):
         if action_name == "submit_create_opportunity":
             try:
                 result = create_revio_opportunity(inputs)
-                opportunity_id = result.get("id") or result.get("opportunity_id") or "created"
+                opportunity_id = result.get("id") or result.get("opportunity_id") or result.get("Id") or "created"
                 if original_message_id:
                     delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity created successfully. Opportunity ID: {opportunity_id}")
@@ -481,6 +513,8 @@ async def webex_webhook(request: Request):
 
             try:
                 result = update_revio_opportunity(opportunity_id, inputs)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity {opportunity_id} updated successfully.")
                 return {"ok": True, "type": "attachmentAction", "result": result}
             except Exception as e:
@@ -496,6 +530,8 @@ async def webex_webhook(request: Request):
 
             try:
                 delete_revio_opportunity(opportunity_id)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity {opportunity_id} deleted successfully.")
                 return {"ok": True, "type": "attachmentAction", "deleted": opportunity_id}
             except Exception as e:
