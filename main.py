@@ -502,8 +502,13 @@ async def webex_webhook(request: Request):
                     or result.get("Id")
                     or result.get("opportunity_id")
                     or result.get("OpportunityId")
+                    or result.get("data", {}).get("id")
+                    or result.get("data", {}).get("Id")
+                    or result.get("data", {}).get("opportunityId")
+                    or result.get("data", {}).get("OpportunityId")
                 )
-                print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
+
+print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
                 if original_message_id:
                     delete_webex_message(original_message_id)
                 post_webex_message(room_id, f"Opportunity created successfully. Opportunity ID: {opportunity_id}")
