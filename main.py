@@ -262,10 +262,19 @@ def post_create_customer_card(room_id: str):
         "body": [
             {"type": "TextBlock", "text": "Create Customer", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "name", "label": "Name"},
-            {"type": "Input.Text", "id": "display_name", "label": "Display Name"},
+            {"type": "Input.Text", "id": "identity", "label": "Identity", "value": "Business"},
+            {"type": "Input.Text", "id": "type", "label": "Type", "value": "Customer"},
+            {"type": "Input.Text", "id": "status", "label": "Status", "value": "Open"},
             {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
-            {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
-            {"type": "Input.Text", "id": "customer_type_id", "label": "Customer Type ID"},
+            {"type": "Input.Text", "id": "address_line_1", "label": "Address Line 1"},
+            {"type": "Input.Text", "id": "address_line_2", "label": "Address Line 2"},
+            {"type": "Input.Text", "id": "city", "label": "City"},
+            {"type": "Input.Text", "id": "state", "label": "State", "value": "IN"},
+            {"type": "Input.Text", "id": "postal_code", "label": "Postal Code"},
+            {"type": "Input.Text", "id": "country_code", "label": "Country Code", "value": "USA"},
+            {"type": "Input.Text", "id": "website", "label": "Website"},
+            {"type": "Input.Text", "id": "bill_profile_id", "label": "Bill Profile ID", "value": "1002"},
+            {"type": "Input.Text", "id": "parent_customer_id", "label": "Parent Customer ID"},
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Create Customer", "data": {"action": "submit_create_customer"}}
@@ -420,13 +429,16 @@ def build_customer_payload(inputs: dict):
 
     payload = {
         "name": clean_value(inputs.get("name")),
+        "identity": clean_value(inputs.get("identity")) or "Business",
+        "type": clean_value(inputs.get("type")) or "Customer",
+        "status": clean_value(inputs.get("status")) or "Open",
         "address": {
-            "addressLine1": clean_value(inputs.get("address_line_1")),
+            "addressLine1": clean_value(inputs.get("address_line_1")) or "Unknown",
             "addressLine2": clean_value(inputs.get("address_line_2")),
-            "cityMunicipality": clean_value(inputs.get("city")),
-            "stateProvinceCode": clean_value(inputs.get("state")),
-            "postalCode": clean_value(inputs.get("postal_code")),
-            "countryCode": clean_value(inputs.get("country_code")),
+            "cityMunicipality": clean_value(inputs.get("city")) or "Unknown",
+            "stateProvinceCode": clean_value(inputs.get("state")) or "NA",
+            "postalCode": clean_value(inputs.get("postal_code")) or "00000",
+            "countryCode": clean_value(inputs.get("country_code")) or "USA",
         },
         "website": clean_value(inputs.get("website")),
         "billProfileId": to_int_or_none(inputs.get("bill_profile_id")),
@@ -435,9 +447,6 @@ def build_customer_payload(inputs: dict):
 
     if email:
         payload["emailAddresses"] = [email]
-
-    if not any(payload["address"].values()):
-        payload.pop("address", None)
 
     return {k: v for k, v in payload.items() if v is not None}
 
