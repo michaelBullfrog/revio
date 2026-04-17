@@ -20,7 +20,7 @@ BOT_PERSON_ID = None
 
 @app.get("/")
 def home():
-    return {"ok": True, "message": "Webex opportunities bot is running"}
+    return {"ok": True, "message": "Webex opportunities and customers bot is running"}
 
 
 @app.get("/health")
@@ -115,16 +115,9 @@ def post_main_menu_card(room_id: str):
             },
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Opportunities",
-                "data": {"action": "show_opportunities_menu"},
-            },
-            {
-                "type": "Action.Submit",
-                "title": "Help",
-                "data": {"action": "show_help_menu"},
-            },
+            {"type": "Action.Submit", "title": "Opportunities", "data": {"action": "show_opportunities_menu"}},
+            {"type": "Action.Submit", "title": "Customers", "data": {"action": "show_customers_menu"}},
+            {"type": "Action.Submit", "title": "Help", "data": {"action": "show_help_menu"}},
         ],
     }
     return post_webex_card(room_id, "Bot menu", card_content)
@@ -136,28 +129,21 @@ def post_help_card(room_id: str):
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.3",
         "body": [
-            {
-                "type": "TextBlock",
-                "text": "Available Commands",
-                "weight": "Bolder",
-                "size": "Large",
-            },
+            {"type": "TextBlock", "text": "Available Commands", "weight": "Bolder", "size": "Large"},
             {
                 "type": "TextBlock",
                 "text": (
                     "• Opportunities - Open the opportunities menu\n"
-                    "• Help - Show available commands\n"
-                    "• Mention the bot - Show this menu card"
+                    "• Customers - Open the customers menu\n"
+                    "• Help - Show this help card\n"
+                    "• Mention the bot - Show the main menu card"
                 ),
                 "wrap": True,
             },
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Open Opportunities",
-                "data": {"action": "show_opportunities_menu"},
-            }
+            {"type": "Action.Submit", "title": "Open Opportunities", "data": {"action": "show_opportunities_menu"}},
+            {"type": "Action.Submit", "title": "Open Customers", "data": {"action": "show_customers_menu"}},
         ],
     }
     return post_webex_card(room_id, "Help menu", card_content)
@@ -169,12 +155,7 @@ def post_opportunity_menu_card(room_id: str):
         "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
         "version": "1.3",
         "body": [
-            {
-                "type": "TextBlock",
-                "text": "Bullfrog Opportunities",
-                "weight": "Bolder",
-                "size": "Large",
-            },
+            {"type": "TextBlock", "text": "Bullfrog Opportunities", "weight": "Bolder", "size": "Large"},
             {
                 "type": "TextBlock",
                 "text": "Choose which opportunity action you want to continue with.",
@@ -183,24 +164,35 @@ def post_opportunity_menu_card(room_id: str):
             },
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Create Opportunity",
-                "data": {"action": "show_create_opportunity"},
-            },
-            {
-                "type": "Action.Submit",
-                "title": "Update Opportunity",
-                "data": {"action": "show_update_opportunity"},
-            },
-            {
-                "type": "Action.Submit",
-                "title": "Delete Opportunity",
-                "data": {"action": "show_delete_opportunity"},
-            },
+            {"type": "Action.Submit", "title": "Create Opportunity", "data": {"action": "show_create_opportunity"}},
+            {"type": "Action.Submit", "title": "Update Opportunity", "data": {"action": "show_update_opportunity"}},
+            {"type": "Action.Submit", "title": "Delete Opportunity", "data": {"action": "show_delete_opportunity"}},
         ],
     }
     return post_webex_card(room_id, "Opportunity menu", card_content)
+
+
+def post_customers_menu_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Bullfrog Customers", "weight": "Bolder", "size": "Large"},
+            {
+                "type": "TextBlock",
+                "text": "Choose which customer action you want to continue with.",
+                "wrap": True,
+                "spacing": "Small",
+            },
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Create Customer", "data": {"action": "show_create_customer"}},
+            {"type": "Action.Submit", "title": "Update Customer", "data": {"action": "show_update_customer"}},
+            {"type": "Action.Submit", "title": "Get Customer", "data": {"action": "show_get_customer"}},
+        ],
+    }
+    return post_webex_card(room_id, "Customer menu", card_content)
 
 
 def post_create_opportunity_card(room_id: str):
@@ -218,11 +210,7 @@ def post_create_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "type_id", "label": "Type ID", "value": "1"},
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Create",
-                "data": {"action": "submit_create_opportunity"},
-            }
+            {"type": "Action.Submit", "title": "Create", "data": {"action": "submit_create_opportunity"}}
         ],
     }
     return post_webex_card(room_id, "Create opportunity form", card_content)
@@ -244,11 +232,7 @@ def post_update_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Update",
-                "data": {"action": "submit_update_opportunity"},
-            }
+            {"type": "Action.Submit", "title": "Update", "data": {"action": "submit_update_opportunity"}}
         ],
     }
     return post_webex_card(room_id, "Update opportunity form", card_content)
@@ -264,14 +248,69 @@ def post_delete_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "opportunity_id", "label": "Opportunity ID"},
         ],
         "actions": [
-            {
-                "type": "Action.Submit",
-                "title": "Delete",
-                "data": {"action": "submit_delete_opportunity"},
-            }
+            {"type": "Action.Submit", "title": "Delete", "data": {"action": "submit_delete_opportunity"}}
         ],
     }
     return post_webex_card(room_id, "Delete opportunity form", card_content)
+
+
+def post_create_customer_card(room_id: str):
+    # These field names are a best-effort mapping and may need minor adjustment
+    # if your Rev.io tenant expects a different customer request schema.
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Create Customer", "weight": "Bolder", "size": "Large"},
+            {"type": "Input.Text", "id": "name", "label": "Customer Name"},
+            {"type": "Input.Text", "id": "display_name", "label": "Display Name"},
+            {"type": "Input.Text", "id": "email", "label": "Email"},
+            {"type": "Input.Text", "id": "phone", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "customer_type_id", "label": "Customer Type ID"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Create Customer", "data": {"action": "submit_create_customer"}}
+        ],
+    }
+    return post_webex_card(room_id, "Create customer form", card_content)
+
+
+def post_update_customer_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Update Customer", "weight": "Bolder", "size": "Large"},
+            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
+            {"type": "Input.Text", "id": "name", "label": "Customer Name"},
+            {"type": "Input.Text", "id": "display_name", "label": "Display Name"},
+            {"type": "Input.Text", "id": "email", "label": "Email"},
+            {"type": "Input.Text", "id": "phone", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "customer_type_id", "label": "Customer Type ID"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Update Customer", "data": {"action": "submit_update_customer"}}
+        ],
+    }
+    return post_webex_card(room_id, "Update customer form", card_content)
+
+
+def post_get_customer_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Get Customer", "weight": "Bolder", "size": "Large"},
+            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Get Customer", "data": {"action": "submit_get_customer"}}
+        ],
+    }
+    return post_webex_card(room_id, "Get customer form", card_content)
 
 
 def get_message(message_id: str):
@@ -378,6 +417,19 @@ def build_opportunity_payload(inputs: dict):
     return {k: v for k, v in payload.items() if v is not None}
 
 
+def build_customer_payload(inputs: dict):
+    # Best-effort field mapping. If your tenant expects different field names,
+    # adjust them here after testing against the live validation response.
+    payload = {
+        "Name": clean_value(inputs.get("name")),
+        "DisplayName": clean_value(inputs.get("display_name")),
+        "EmailAddress": clean_value(inputs.get("email")),
+        "PhoneNumber": clean_value(inputs.get("phone")),
+        "CustomerTypeId": to_int_or_none(inputs.get("customer_type_id")),
+    }
+    return {k: v for k, v in payload.items() if v is not None}
+
+
 def get_revio_opportunity(opportunity_id: str):
     headers = get_psa_headers()
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities/{opportunity_id}"
@@ -461,6 +513,55 @@ def delete_revio_opportunity(opportunity_id: str):
     return {"ok": True}
 
 
+def create_revio_customer(inputs: dict):
+    headers = get_psa_headers()
+    payload = build_customer_payload(inputs)
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers"
+
+    print(f"[DEBUG] Create customer URL: {url}")
+    print(f"[DEBUG] Create customer payload: {json.dumps(payload)}")
+
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    print(f"[DEBUG] Create customer status: {r.status_code}")
+    print(f"[DEBUG] Create customer response: {r.text[:4000]}")
+
+    if not r.ok:
+        raise Exception(f"Rev.io create customer {r.status_code}: {r.text[:1500]}")
+
+    return r.json() if r.text.strip() else {"ok": True}
+
+
+def get_revio_customer(customer_id: str):
+    headers = get_psa_headers()
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers/{customer_id}"
+
+    print(f"[DEBUG] Get customer URL: {url}")
+
+    r = requests.get(url, headers=headers, timeout=30)
+    print(f"[DEBUG] Get customer status: {r.status_code}")
+    print(f"[DEBUG] Get customer response: {r.text[:4000]}")
+    r.raise_for_status()
+    return r.json()
+
+
+def update_revio_customer(customer_id: str, inputs: dict):
+    headers = get_psa_headers()
+    payload = build_customer_payload(inputs)
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers/{customer_id}"
+
+    print(f"[DEBUG] Update customer URL: {url}")
+    print(f"[DEBUG] Update customer payload: {json.dumps(payload)}")
+
+    r = requests.put(url, headers=headers, json=payload, timeout=30)
+    print(f"[DEBUG] Update customer status: {r.status_code}")
+    print(f"[DEBUG] Update customer response: {r.text[:4000]}")
+
+    if not r.ok:
+        raise Exception(f"Rev.io update customer {r.status_code}: {r.text[:1500]}")
+
+    return r.json() if r.text.strip() else {"ok": True}
+
+
 @app.on_event("startup")
 def startup_event():
     try:
@@ -510,10 +611,12 @@ async def webex_webhook(request: Request):
             post_help_card(room_id)
         elif text == "opportunities":
             post_opportunity_menu_card(room_id)
+        elif text == "customers":
+            post_customers_menu_card(room_id)
         else:
             post_webex_message(
                 room_id,
-                "Unknown command. Mention me or say 'Opportunities' to get started.",
+                "Unknown command. Mention me or say 'Help' to see available commands.",
             )
 
         return {"ok": True, "type": "message"}
@@ -540,6 +643,12 @@ async def webex_webhook(request: Request):
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
+        if action_name == "show_customers_menu":
+            post_customers_menu_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
         if action_name == "show_help_menu":
             post_help_card(room_id)
             if original_message_id:
@@ -560,6 +669,24 @@ async def webex_webhook(request: Request):
 
         if action_name == "show_delete_opportunity":
             post_delete_opportunity_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_create_customer":
+            post_create_customer_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_update_customer":
+            post_update_customer_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_get_customer":
+            post_get_customer_card(room_id)
             if original_message_id:
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
@@ -633,6 +760,78 @@ async def webex_webhook(request: Request):
             except Exception as e:
                 print(f"[ERROR] Rev.io delete opportunity failed: {e}")
                 post_webex_message(room_id, f"Opportunity delete failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_create_customer":
+            try:
+                result = create_revio_customer(inputs)
+                print(f"[DEBUG] Raw create customer result: {json.dumps(result)}", flush=True)
+
+                customer_id = (
+                    result.get("customerId")
+                    or result.get("CustomerId")
+                    or result.get("id")
+                    or result.get("Id")
+                    or result.get("data", {}).get("customerId")
+                    or result.get("data", {}).get("CustomerId")
+                    or result.get("data", {}).get("id")
+                    or result.get("data", {}).get("Id")
+                )
+
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+
+                post_webex_message(
+                    room_id,
+                    f"Customer created successfully. Customer ID: {customer_id or 'not returned in create response'}"
+                )
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io create customer failed: {e}")
+                post_webex_message(room_id, f"Customer creation failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_update_customer":
+            customer_id = clean_value(inputs.get("customer_id"))
+            if not customer_id:
+                post_webex_message(room_id, "Update failed. Customer ID is required.")
+                return {"ok": False, "error": "Missing customer ID"}
+
+            try:
+                result = update_revio_customer(customer_id, inputs)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+                post_webex_message(room_id, f"Customer {customer_id} updated successfully.")
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io update customer failed: {e}")
+                post_webex_message(room_id, f"Customer update failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_get_customer":
+            customer_id = clean_value(inputs.get("customer_id"))
+            if not customer_id:
+                post_webex_message(room_id, "Get customer failed. Customer ID is required.")
+                return {"ok": False, "error": "Missing customer ID"}
+
+            try:
+                result = get_revio_customer(customer_id)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+
+                summary = {
+                    "Id": result.get("id") or result.get("Id") or result.get("customerId") or result.get("CustomerId"),
+                    "Name": result.get("name") or result.get("Name"),
+                    "DisplayName": result.get("displayName") or result.get("DisplayName"),
+                    "EmailAddress": result.get("emailAddress") or result.get("EmailAddress"),
+                    "PhoneNumber": result.get("phoneNumber") or result.get("PhoneNumber"),
+                    "CustomerTypeId": result.get("customerTypeId") or result.get("CustomerTypeId"),
+                }
+                post_webex_message(room_id, f"Customer details:\n{json.dumps(summary, indent=2)}")
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io get customer failed: {e}")
+                post_webex_message(room_id, f"Get customer failed. Error: {str(e)[:400]}")
                 return {"ok": False, "error": str(e)}
 
         post_webex_message(room_id, "Unknown action received.")
