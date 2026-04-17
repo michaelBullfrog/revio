@@ -188,7 +188,6 @@ def post_customers_menu_card(room_id: str):
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Create Customer", "data": {"action": "show_create_customer"}},
-            {"type": "Action.Submit", "title": "Update Customer", "data": {"action": "show_update_customer"}},
             {"type": "Action.Submit", "title": "Get Customer", "data": {"action": "show_get_customer"}},
         ],
     }
@@ -282,23 +281,6 @@ def post_create_customer_card(room_id: str):
         ],
     }
     return post_webex_card(room_id, "Create customer form", card_content)
-
-
-def post_update_customer_card(room_id: str):
-    card_content = {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.3",
-        "body": [
-            {"type": "TextBlock", "text": "Update Customer", "weight": "Bolder", "size": "Large"},
-            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "bill_profile_id", "label": "Bill Profile ID", "value": "1002"},
-        ],
-        "actions": [
-            {"type": "Action.Submit", "title": "Update Customer", "data": {"action": "submit_update_customer"}}
-        ],
-    }
-    return post_webex_card(room_id, "Update customer form", card_content)
 
 
 def post_get_customer_card(room_id: str):
@@ -758,12 +740,6 @@ async def webex_webhook(request: Request):
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
-        if action_name == "show_update_customer":
-            post_update_customer_card(room_id)
-            if original_message_id:
-                delete_webex_message(original_message_id)
-            return {"ok": True, "type": "attachmentAction", "action": action_name}
-
         if action_name == "show_get_customer":
             post_get_customer_card(room_id)
             if original_message_id:
@@ -868,23 +844,6 @@ async def webex_webhook(request: Request):
             except Exception as e:
                 print(f"[ERROR] Rev.io create customer failed: {e}")
                 post_webex_message(room_id, f"Customer creation failed. Error: {str(e)[:400]}")
-                return {"ok": False, "error": str(e)}
-
-        if action_name == "submit_update_customer":
-            customer_id = clean_value(inputs.get("customer_id"))
-            if not customer_id:
-                post_webex_message(room_id, "Update failed. Customer ID is required.")
-                return {"ok": False, "error": "Missing customer ID"}
-
-            try:
-                result = update_revio_customer(customer_id, inputs)
-                if original_message_id:
-                    delete_webex_message(original_message_id)
-                post_webex_message(room_id, f"Customer {customer_id} updated successfully.")
-                return {"ok": True, "type": "attachmentAction", "result": result}
-            except Exception as e:
-                print(f"[ERROR] Rev.io update customer failed: {e}")
-                post_webex_message(room_id, f"Customer update failed. Error: {str(e)[:400]}")
                 return {"ok": False, "error": str(e)}
 
         if action_name == "submit_get_customer":
