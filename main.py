@@ -135,7 +135,6 @@ def post_opportunity_menu_card(room_id: str):
     return post_webex_card(room_id, "Opportunity menu", card_content)
 
 
-
 def post_create_opportunity_card(room_id: str):
     card_content = {
         "type": "AdaptiveCard",
@@ -160,7 +159,6 @@ def post_create_opportunity_card(room_id: str):
         ],
     }
     return post_webex_card(room_id, "Create opportunity form", card_content)
-
 
 
 def post_update_opportunity_card(room_id: str):
@@ -190,7 +188,6 @@ def post_update_opportunity_card(room_id: str):
     return post_webex_card(room_id, "Update opportunity form", card_content)
 
 
-
 def post_delete_opportunity_card(room_id: str):
     card_content = {
         "type": "AdaptiveCard",
@@ -211,7 +208,6 @@ def post_delete_opportunity_card(room_id: str):
     return post_webex_card(room_id, "Delete opportunity form", card_content)
 
 
-
 def get_message(message_id: str):
     r = requests.get(
         f"https://webexapis.com/v1/messages/{message_id}",
@@ -224,7 +220,6 @@ def get_message(message_id: str):
     return r.json()
 
 
-
 def get_attachment_action(action_id: str):
     r = requests.get(
         f"https://webexapis.com/v1/attachment/actions/{action_id}",
@@ -235,7 +230,6 @@ def get_attachment_action(action_id: str):
     print(f"[DEBUG] Attachment action response: {r.text[:1000]}")
     r.raise_for_status()
     return r.json()
-
 
 
 def get_revio_psa_token():
@@ -260,7 +254,6 @@ def get_revio_psa_token():
     return token
 
 
-
 def get_psa_headers():
     token = get_revio_psa_token()
     return {
@@ -270,7 +263,6 @@ def get_psa_headers():
     }
 
 
-
 def clean_value(value):
     if value is None:
         return None
@@ -278,7 +270,6 @@ def clean_value(value):
         value = value.strip()
         return value if value else None
     return value
-
 
 
 def to_int_or_none(value):
@@ -291,7 +282,6 @@ def to_int_or_none(value):
         return None
 
 
-
 def to_float_or_none(value):
     value = clean_value(value)
     if value is None:
@@ -300,7 +290,6 @@ def to_float_or_none(value):
         return float(value)
     except (TypeError, ValueError):
         return None
-
 
 
 def build_opportunity_payload(inputs: dict):
@@ -324,7 +313,6 @@ def build_opportunity_payload(inputs: dict):
     return {k: v for k, v in payload.items() if v is not None}
 
 
-
 def get_revio_opportunity(opportunity_id: str):
     headers = get_psa_headers()
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities/{opportunity_id}"
@@ -334,12 +322,8 @@ def get_revio_opportunity(opportunity_id: str):
     r = requests.get(url, headers=headers, timeout=30)
     print(f"[DEBUG] Get opportunity status: {r.status_code}")
     print(f"[DEBUG] Get opportunity response: {r.text[:4000]}")
-
-    if not r.ok:
-        raise Exception(f"Rev.io get opportunity {r.status_code}: {r.text[:1500]}")
-
+    r.raise_for_status()
     return r.json()
-
 
 
 def create_revio_opportunity(inputs: dict):
@@ -358,29 +342,8 @@ def create_revio_opportunity(inputs: dict):
     if not r.ok:
         raise Exception(f"Rev.io create opportunity {r.status_code}: {r.text[:1500]}")
 
-    result = r.json() if r.text.strip() else {"ok": True}
+    return r.json() if r.text.strip() else {"ok": True}
 
-    opportunity_id = result.get("id") or result.get("opportunity_id") or result.get("Id")
-    if opportunity_id:
-        try:
-            saved_record = get_revio_opportunity(str(opportunity_id))
-            print(f"[DEBUG] Saved opportunity record: {json.dumps(saved_record)}")
-        except Exception as fetch_error:
-            print(f"[ERROR] Failed to fetch created opportunity: {fetch_error}")
-
-    return result
-
-def get_revio_opportunity(opportunity_id: str):
-    headers = get_psa_headers()
-    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/opportunities/{opportunity_id}"
-
-    print(f"[DEBUG] Get opportunity URL: {url}")
-
-    r = requests.get(url, headers=headers, timeout=30)
-    print(f"[DEBUG] Get opportunity status: {r.status_code}")
-    print(f"[DEBUG] Get opportunity response: {r.text[:4000]}")
-    r.raise_for_status()
-    return r.json()
 
 def update_revio_opportunity(opportunity_id: str, inputs: dict):
     headers = get_psa_headers()
@@ -398,7 +361,6 @@ def update_revio_opportunity(opportunity_id: str, inputs: dict):
         raise Exception(f"Rev.io update opportunity {r.status_code}: {r.text[:1500]}")
 
     return r.json() if r.text.strip() else {"ok": True}
-
 
 
 def delete_revio_opportunity(opportunity_id: str):
@@ -503,40 +465,40 @@ async def webex_webhook(request: Request):
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
         if action_name == "submit_create_opportunity":
-    try:
-        result = create_revio_opportunity(inputs)
-        print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
+            try:
+                result = create_revio_opportunity(inputs)
+                print(f"[DEBUG] Raw create result: {json.dumps(result)}", flush=True)
 
-        opportunity_id = (
-            result.get("id")
-            or result.get("Id")
-            or result.get("opportunity_id")
-            or result.get("OpportunityId")
-            or result.get("data", {}).get("id")
-            or result.get("data", {}).get("Id")
-            or result.get("data", {}).get("opportunityId")
-            or result.get("data", {}).get("OpportunityId")
-        )
+                opportunity_id = (
+                    result.get("id")
+                    or result.get("Id")
+                    or result.get("opportunity_id")
+                    or result.get("OpportunityId")
+                    or result.get("data", {}).get("id")
+                    or result.get("data", {}).get("Id")
+                    or result.get("data", {}).get("opportunityId")
+                    or result.get("data", {}).get("OpportunityId")
+                )
 
-        print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
+                print(f"[DEBUG] Extracted opportunity_id: {opportunity_id}", flush=True)
 
-        record = None
-        if opportunity_id:
-            record = get_revio_opportunity(opportunity_id)
-            print(f"[DEBUG] Saved opportunity record: {json.dumps(record)}", flush=True)
+                record = None
+                if opportunity_id:
+                    record = get_revio_opportunity(str(opportunity_id))
+                    print(f"[DEBUG] Saved opportunity record: {json.dumps(record)}", flush=True)
 
-        if original_message_id:
-            delete_webex_message(original_message_id)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
 
-        post_webex_message(
-            room_id,
-            f"Opportunity created successfully. Opportunity ID: {opportunity_id or 'not returned in create response'}"
-        )
-        return {"ok": True, "type": "attachmentAction", "result": result, "record": record}
-    except Exception as e:
-        print(f"[ERROR] Rev.io create opportunity failed: {e}")
-        post_webex_message(room_id, f"Opportunity creation failed. Error: {str(e)[:400]}")
-        return {"ok": False, "error": str(e)}
+                post_webex_message(
+                    room_id,
+                    f"Opportunity created successfully. Opportunity ID: {opportunity_id or 'not returned in create response'}"
+                )
+                return {"ok": True, "type": "attachmentAction", "result": result, "record": record}
+            except Exception as e:
+                print(f"[ERROR] Rev.io create opportunity failed: {e}")
+                post_webex_message(room_id, f"Opportunity creation failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
 
         if action_name == "submit_update_opportunity":
             opportunity_id = clean_value(inputs.get("opportunity_id"))
