@@ -416,13 +416,29 @@ def build_opportunity_payload(inputs: dict):
 
 
 def build_customer_payload(inputs: dict):
+    email = clean_value(inputs.get("email_address"))
+
     payload = {
-        "Name": clean_value(inputs.get("name")),
-        "DisplayName": clean_value(inputs.get("display_name")),
-        "EmailAddress": clean_value(inputs.get("email_address")),
-        "PhoneNumber": clean_value(inputs.get("phone_number")),
-        "CustomerTypeId": to_int_or_none(inputs.get("customer_type_id")),
+        "name": clean_value(inputs.get("name")),
+        "address": {
+            "addressLine1": clean_value(inputs.get("address_line_1")),
+            "addressLine2": clean_value(inputs.get("address_line_2")),
+            "cityMunicipality": clean_value(inputs.get("city")),
+            "stateProvinceCode": clean_value(inputs.get("state")),
+            "postalCode": clean_value(inputs.get("postal_code")),
+            "countryCode": clean_value(inputs.get("country_code")),
+        },
+        "website": clean_value(inputs.get("website")),
+        "billProfileId": to_int_or_none(inputs.get("bill_profile_id")),
+        "parentCustomerId": to_int_or_none(inputs.get("parent_customer_id")),
     }
+
+    if email:
+        payload["emailAddresses"] = [email]
+
+    if not any(payload["address"].values()):
+        payload.pop("address", None)
+
     return {k: v for k, v in payload.items() if v is not None}
 
 
@@ -816,12 +832,17 @@ async def webex_webhook(request: Request):
                     delete_webex_message(original_message_id)
 
                 summary = {
-                    "Id": result.get("id") or result.get("Id") or result.get("customerId") or result.get("CustomerId"),
-                    "Name": result.get("name") or result.get("Name"),
-                    "DisplayName": result.get("displayName") or result.get("DisplayName"),
-                    "EmailAddress": result.get("emailAddress") or result.get("EmailAddress"),
-                    "PhoneNumber": result.get("phoneNumber") or result.get("PhoneNumber"),
-                    "CustomerTypeId": result.get("customerTypeId") or result.get("CustomerTypeId"),
+                    "customerId": result.get("customerId"),
+                    "accountNumber": result.get("accountNumber"),
+                    "name": result.get("name"),
+                    "identity": result.get("identity"),
+                    "type": result.get("type"),
+                    "status": result.get("status"),
+                    "emailAddresses": result.get("emailAddresses"),
+                    "website": result.get("website"),
+                    "billProfileId": result.get("billProfileId"),
+                    "parentCustomerId": result.get("parentCustomerId"),
+                    "address": result.get("address"),
                 }
                 post_webex_message(room_id, f"Customer details:\n{json.dumps(summary, indent=2)}")
                 return {"ok": True, "type": "attachmentAction", "result": result}
