@@ -147,7 +147,6 @@ def post_create_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
-            {"type": "Input.Text", "id": "source_id", "label": "Source ID"},
             {"type": "Input.Text", "id": "notes", "label": "Notes", "isMultiline": True},
         ],
         "actions": [
@@ -176,7 +175,6 @@ def post_update_opportunity_card(room_id: str):
             {"type": "Input.Text", "id": "stage_id", "label": "Stage ID"},
             {"type": "Input.Text", "id": "status_id", "label": "Status ID"},
             {"type": "Input.Text", "id": "type_id", "label": "Type ID"},
-            {"type": "Input.Text", "id": "source_id", "label": "Source ID"},
             {"type": "Input.Text", "id": "notes", "label": "Notes", "isMultiline": True},
         ],
         "actions": [
@@ -299,7 +297,6 @@ def build_opportunity_payload(inputs: dict):
         "StageId": to_int_or_none(inputs.get("stage_id")),
         "StatusId": to_int_or_none(inputs.get("status_id")),
         "TypeId": to_int_or_none(inputs.get("type_id")),
-        "SourceId": to_int_or_none(inputs.get("source_id")),
         "Notes": clean_value(inputs.get("notes")),
     }
     return {k: v for k, v in payload.items() if v is not None}
