@@ -539,32 +539,65 @@ def build_contact_payload(inputs: dict):
     return {k: v for k, v in payload.items() if v is not None}
 
 
-def get_revio_contacts(inputs: dict):
+def get_revio_contacts(name: str = None, email: str = None):
     headers = get_psa_headers()
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/contacts"
 
     params = {}
-    customer_id = to_int_or_none(inputs.get("customer_id"))
-    page = to_int_or_none(inputs.get("page"))
-    page_size = to_int_or_none(inputs.get("page_size"))
 
-    # The public docs confirm this endpoint retrieves a paged and filtered list,
-    # but do not expose the exact query parameter schema. These are best-effort.
-    if customer_id:
-        params["customerId"] = customer_id
-    if page:
-        params["page"] = page
-    if page_size:
-        params["pageSize"] = page_size
+    if name:
+        params["name"] = name
+
+    if email:
+        params["email"] = email
 
     print(f"[DEBUG] Get contacts URL: {url}")
     print(f"[DEBUG] Get contacts params: {json.dumps(params)}")
 
-    r = requests.get(url, headers=headers, params=params or None, timeout=30)
+    r = requests.get(url, headers=headers, params=params, timeout=30)
     print(f"[DEBUG] Get contacts status: {r.status_code}")
     print(f"[DEBUG] Get contacts response: {r.text[:4000]}")
-    r.raise_for_status()
-    return r.json()
+
+    if not r.ok:
+        raise Exception(f"Rev.io get contacts {r.status_code}: {r.text[:1500]}")
+
+    result = r.json()
+
+    # Handle common response shapes
+    if isinstance(result, list):
+        contacts = result
+    elif isinstance(result, dict):
+        contacts = (
+            result.get("items")
+            or result.get("data")
+            or result.get("contacts")
+            or result.get("results")
+            or []
+        )
+    else:
+        contacts = []
+
+    # Backup local filtering in case API filter params differ
+    name_filter = (name or "").lower().strip()
+    email_filter = (email or "").lower().strip()
+
+    filtered = []
+    for contact in contacts:
+        contact_text = json.dumps(contact).lower()
+
+        name_match = True
+        email_match = True
+
+        if name_filter:
+            name_match = name_filter in contact_text
+
+        if email_filter:
+            email_match = email_filter in contact_text
+
+        if name_match and email_match:
+            filtered.append(contact)
+
+    return filtered
 
 
 def create_revio_contact(inputs: dict):
@@ -1136,8 +1169,15 @@ async def webex_webhook(request: Request):
                 return {"ok": False, "error": str(e)}
 
         if action_name == "submit_get_contacts":
+            contact_name = clean_value(inputs.get("contact_name"))
+            contact_email = clean_value(inputs.get("contact_email"))
+
+            if not contact_name and not contact_email:
+                post_webex_message(room_id, "Search failed. Enter a name, email, or both.")
+                return {"ok": False, "error": "Missing contact search criteria"}
+
             try:
-                result = get_revio_contacts(inputs)
+                result = get_revio_contacts(name=contact_name, email=contact_email)
                 if original_message_id:
                     delete_webex_message(original_message_id)
 
