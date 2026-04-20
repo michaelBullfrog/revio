@@ -136,7 +136,6 @@ def post_help_card(room_id: str):
                 "text": (
                     "• Opportunities - Open the opportunities menu\n"
                     "• Customers - Open the customers menu\n"
-                    "• Search Customers - Find a customer ID by name or email\n"
                     "• Contacts - Open the contacts menu\n"
                     "• Help - Show this help card\n"
                     "• Mention the bot - Show the main menu card"
@@ -193,7 +192,6 @@ def post_customers_menu_card(room_id: str):
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Create Customer", "data": {"action": "show_create_customer"}},
-            {"type": "Action.Submit", "title": "Search Customers", "data": {"action": "show_search_customers"}},
             {"type": "Action.Submit", "title": "Get Customer", "data": {"action": "show_get_customer"}},
         ],
     }
@@ -343,28 +341,6 @@ def post_get_customer_card(room_id: str):
     }
     return post_webex_card(room_id, "Get customer form", card_content)
 
-
-def post_search_customers_card(room_id: str):
-    card_content = {
-        "type": "AdaptiveCard",
-        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
-        "version": "1.3",
-        "body": [
-            {"type": "TextBlock", "text": "Search Customers", "weight": "Bolder", "size": "Large"},
-            {
-                "type": "TextBlock",
-                "text": "Search by customer name, email, or both. Use the returned Customer ID when creating opportunities or contacts.",
-                "wrap": True,
-                "spacing": "Small",
-            },
-            {"type": "Input.Text", "id": "customer_name", "label": "Customer Name"},
-            {"type": "Input.Text", "id": "customer_email", "label": "Email"},
-        ],
-        "actions": [
-            {"type": "Action.Submit", "title": "Search Customers", "data": {"action": "submit_search_customers"}}
-        ],
-    }
-    return post_webex_card(room_id, "Search customers form", card_content)
 
 
 
@@ -678,31 +654,41 @@ def _extract_list_from_response(response):
 
 def format_contact_item(contact: dict) -> str:
     contact_id = contact.get("contactId") or contact.get("id") or contact.get("Id") or "N/A"
-    first_name = contact.get("firstName") or contact.get("FirstName") or ""
-    last_name = contact.get("lastName") or contact.get("LastName") or ""
-    name = contact.get("name") or contact.get("Name") or f"{first_name} {last_name}".strip() or "N/A"
+    name = contact.get("name") or contact.get("Name") or "N/A"
     customer_id = contact.get("customerId") or contact.get("CustomerId") or "N/A"
-    emails = contact.get("emailAddresses") or contact.get("emails") or []
-    phones = contact.get("phoneNumbers") or contact.get("phones") or []
-    title = contact.get("title") or contact.get("Title") or "N/A"
 
+    emails = contact.get("emailAddresses") or contact.get("emails") or []
     if isinstance(emails, list):
         email_text = ", ".join(str(e) for e in emails) if emails else "N/A"
     else:
         email_text = str(emails) if emails else "N/A"
 
-    if isinstance(phones, list):
-        phone_text = ", ".join(str(p) for p in phones) if phones else "N/A"
-    else:
-        phone_text = str(phones) if phones else "N/A"
+    phone = (
+        contact.get("phoneNumber")
+        or contact.get("PhoneNumber")
+        or contact.get("phone")
+        or "N/A"
+    )
+
+    contact_type_id = (
+        contact.get("contactTypeId")
+        or contact.get("ContactTypeId")
+        or "N/A"
+    )
+
+    contact_type = (
+        "Technical" if str(contact_type_id) == "1"
+        else "Billing" if str(contact_type_id) == "2"
+        else contact_type_id
+    )
 
     return (
         f"Contact ID: {contact_id}\n"
         f"Name: {name}\n"
         f"Customer ID: {customer_id}\n"
-        f"Title: {title}\n"
         f"Email: {email_text}\n"
-        f"Phone: {phone_text}"
+        f"Phone: {phone}\n"
+        f"Contact Type: {contact_type}"
     )
 
 
@@ -823,83 +809,6 @@ def create_revio_customer(inputs: dict):
     return r.json() if r.text.strip() else {"ok": True}
 
 
-def get_revio_customers(name: str = None, email: str = None):
-    headers = get_psa_headers()
-    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customer-summaries"
-
-    # Do not send name/email as API params yet. Some Rev.io tenants return
-    # empty results when unsupported filter names are sent. Pull a page first,
-    # then filter locally below.
-    params = {
-        "page": 1,
-        "pageSize": 200,
-    }
-
-    print(f"[DEBUG] Search customers URL: {url}")
-    print(f"[DEBUG] Search customers params: {json.dumps(params)}")
-
-    r = requests.get(url, headers=headers, params=params, timeout=30)
-    print(f"[DEBUG] Search customers status: {r.status_code}")
-    print(f"[DEBUG] Search customers response: {r.text[:4000]}")
-
-    if not r.ok:
-        raise Exception(f"Rev.io search customers {r.status_code}: {r.text[:1500]}")
-
-    result = r.json()
-
-    if isinstance(result, list):
-        customers = result
-    elif isinstance(result, dict):
-        customers = (
-            result.get("items")
-            or result.get("data")
-            or result.get("customers")
-            or result.get("results")
-            or result.get("records")
-            or result.get("customerSummaries")
-            or []
-        )
-
-        # Some APIs nest the actual list one level deeper.
-        if isinstance(customers, dict):
-            customers = (
-                customers.get("items")
-                or customers.get("data")
-                or customers.get("records")
-                or customers.get("results")
-                or []
-            )
-    else:
-        customers = []
-
-    name_filter = (name or "").lower().strip()
-    email_filter = (email or "").lower().strip()
-
-    filtered = []
-    for customer in customers:
-        customer_text = json.dumps(customer).lower()
-
-        name_match = True
-        email_match = True
-
-        if name_filter:
-            name_match = name_filter in customer_text
-
-        if email_filter:
-            email_match = email_filter in customer_text
-
-        if name_match and email_match:
-            filtered.append(customer)
-
-    print(f"[DEBUG] Parsed customers count: {len(customers)}")
-    print(f"[DEBUG] Filtered customers count: {len(filtered)}")
-
-    return filtered
-
-
-def search_revio_customers(name: str = None, email: str = None):
-    """Search customers using customer-summaries, then filter locally as a backup."""
-    return get_revio_customers(name=name, email=email)
 
 
 def get_revio_customer(customer_id: str):
@@ -993,30 +902,6 @@ def format_customer_details(customer: dict) -> str:
     )
 
 
-def format_customer_search_results(customers: list) -> str:
-    if not customers:
-        return "No customers found for that search."
-
-    lines = [f"Customers Found: {len(customers)}"]
-    for index, customer in enumerate(customers[:10], start=1):
-        address = customer.get("address") or {}
-        emails = customer.get("emailAddresses") or []
-        email_text = ", ".join(emails) if isinstance(emails, list) and emails else "N/A"
-
-        lines.append(
-            "\n"
-            f"Customer {index}\n"
-            f"Customer ID: {customer.get('customerId') or customer.get('id') or customer.get('Id') or 'N/A'}\n"
-            f"Name: {customer.get('name') or customer.get('Name') or 'N/A'}\n"
-            f"Status: {customer.get('status') or 'N/A'}\n"
-            f"Email: {email_text}\n"
-            f"City/State: {address.get('cityMunicipality') or 'N/A'}, {address.get('stateProvinceCode') or 'N/A'}"
-        )
-
-    if len(customers) > 10:
-        lines.append(f"\nShowing first 10 of {len(customers)} customers.")
-
-    return "\n".join(lines)
 
 
 def format_created_contact(inputs: dict, contact_id=None) -> str:
@@ -1181,12 +1066,6 @@ async def webex_webhook(request: Request):
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
 
-        if action_name == "show_search_customers":
-            post_search_customers_card(room_id)
-            if original_message_id:
-                delete_webex_message(original_message_id)
-            return {"ok": True, "type": "attachmentAction", "action": action_name}
-
         if action_name == "show_get_customer":
             post_get_customer_card(room_id)
             if original_message_id:
@@ -1335,26 +1214,6 @@ async def webex_webhook(request: Request):
                 post_webex_message(room_id, f"Customer creation failed. Error: {str(e)[:400]}")
                 return {"ok": False, "error": str(e)}
 
-        if action_name == "submit_search_customers":
-            customer_name = clean_value(inputs.get("customer_name"))
-            customer_email = clean_value(inputs.get("customer_email"))
-
-            if not customer_name and not customer_email:
-                post_webex_message(room_id, "Search failed. Enter a customer name, email, or both.")
-                return {"ok": False, "error": "Missing customer search criteria"}
-
-            try:
-                result = search_revio_customers(name=customer_name, email=customer_email)
-                if original_message_id:
-                    delete_webex_message(original_message_id)
-
-                formatted = format_customer_search_results(result)
-                post_webex_message(room_id, formatted)
-                return {"ok": True, "type": "attachmentAction", "result": result}
-            except Exception as e:
-                print(f"[ERROR] Rev.io search customers failed: {e}")
-                post_webex_message(room_id, f"Search customers failed. Error: {str(e)[:400]}")
-                return {"ok": False, "error": str(e)}
 
         if action_name == "submit_get_customer":
             customer_id = clean_value(inputs.get("customer_id"))
