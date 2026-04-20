@@ -879,6 +879,11 @@ def get_revio_customers(name: str = None, email: str = None):
     return filtered
 
 
+def search_revio_customers(name: str = None, email: str = None):
+    """Search customers using the working customer list endpoint, then filter locally."""
+    return get_revio_customers(name=name, email=email)
+
+
 def get_revio_customer(customer_id: str):
     headers = get_psa_headers()
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers/{customer_id}"
@@ -1321,7 +1326,7 @@ async def webex_webhook(request: Request):
                 return {"ok": False, "error": "Missing customer search criteria"}
 
             try:
-                result = get_revio_customers(name=customer_name, email=customer_email)
+                result = search_revio_customers(name=customer_name, email=customer_email)
                 if original_message_id:
                     delete_webex_message(original_message_id)
 
