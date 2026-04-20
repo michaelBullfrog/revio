@@ -827,11 +827,13 @@ def get_revio_customers(name: str = None, email: str = None):
     headers = get_psa_headers()
     url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customer-summaries"
 
-    params = {}
-    if name:
-        params["name"] = name
-    if email:
-        params["email"] = email
+    # Do not send name/email as API params yet. Some Rev.io tenants return
+    # empty results when unsupported filter names are sent. Pull a page first,
+    # then filter locally below.
+    params = {
+        "page": 1,
+        "pageSize": 200,
+    }
 
     print(f"[DEBUG] Search customers URL: {url}")
     print(f"[DEBUG] Search customers params: {json.dumps(params)}")
@@ -854,8 +856,19 @@ def get_revio_customers(name: str = None, email: str = None):
             or result.get("customers")
             or result.get("results")
             or result.get("records")
+            or result.get("customerSummaries")
             or []
         )
+
+        # Some APIs nest the actual list one level deeper.
+        if isinstance(customers, dict):
+            customers = (
+                customers.get("items")
+                or customers.get("data")
+                or customers.get("records")
+                or customers.get("results")
+                or []
+            )
     else:
         customers = []
 
@@ -865,16 +878,21 @@ def get_revio_customers(name: str = None, email: str = None):
     filtered = []
     for customer in customers:
         customer_text = json.dumps(customer).lower()
+
         name_match = True
         email_match = True
 
         if name_filter:
             name_match = name_filter in customer_text
+
         if email_filter:
             email_match = email_filter in customer_text
 
         if name_match and email_match:
             filtered.append(customer)
+
+    print(f"[DEBUG] Parsed customers count: {len(customers)}")
+    print(f"[DEBUG] Filtered customers count: {len(filtered)}")
 
     return filtered
 
