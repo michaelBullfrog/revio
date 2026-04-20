@@ -333,7 +333,13 @@ def post_get_customer_card(room_id: str):
         "version": "1.3",
         "body": [
             {"type": "TextBlock", "text": "Get Customer", "weight": "Bolder", "size": "Large"},
-            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
+            {
+                "type": "TextBlock",
+                "text": "Enter a Customer ID, contact name, or email address. Name/email searches use the Contacts lookup to find the related Customer ID.",
+                "wrap": True,
+                "spacing": "Small",
+            },
+            {"type": "Input.Text", "id": "customer_lookup", "label": "Customer ID, Contact Name, or Email"},
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Get Customer", "data": {"action": "submit_get_customer"}}
@@ -863,6 +869,27 @@ def update_revio_customer(customer_id: str, inputs: dict):
     return r.json() if r.text.strip() else {"ok": True}
 
 
+def find_customer_id_from_contacts(lookup: str):
+    lookup = clean_value(lookup)
+    if not lookup:
+        return None, []
+
+    if "@" in lookup:
+        contacts = get_revio_contacts(email=lookup)
+    else:
+        contacts = get_revio_contacts(name=lookup)
+
+    if not contacts:
+        return None, []
+
+    for contact in contacts:
+        customer_id = contact.get("customerId") or contact.get("CustomerId")
+        if customer_id:
+            return str(customer_id), contacts
+
+    return None, contacts
+
+
 def format_customer_details(customer: dict) -> str:
     address = customer.get("address") or {}
     emails = customer.get("emailAddresses") or []
@@ -1216,19 +1243,39 @@ async def webex_webhook(request: Request):
 
 
         if action_name == "submit_get_customer":
-            customer_id = clean_value(inputs.get("customer_id"))
-            if not customer_id:
-                post_webex_message(room_id, "Get customer failed. Customer ID is required.")
-                return {"ok": False, "error": "Missing customer ID"}
+            lookup = clean_value(inputs.get("customer_lookup") or inputs.get("customer_id"))
+            if not lookup:
+                post_webex_message(room_id, "Get customer failed. Enter a Customer ID, contact name, or email address.")
+                return {"ok": False, "error": "Missing customer lookup"}
 
             try:
+                customer_id = lookup
+                matched_contacts = []
+
+                if not str(lookup).isdigit():
+                    customer_id, matched_contacts = find_customer_id_from_contacts(lookup)
+                    if not customer_id:
+                        post_webex_message(
+                            room_id,
+                            "Get customer failed. I found no contact with a Customer ID for that name/email. Try Contacts → Get Contacts first, then use the Customer ID shown there.",
+                        )
+                        return {"ok": False, "error": "No customer ID found from contacts", "contacts": matched_contacts}
+
                 result = get_revio_customer(customer_id)
                 if original_message_id:
                     delete_webex_message(original_message_id)
 
                 formatted = format_customer_details(result)
-                post_webex_message(room_id, formatted)
-                return {"ok": True, "type": "attachmentAction", "result": result}
+                if matched_contacts:
+                    matched_count = len(matched_contacts)
+                    post_webex_message(
+                        room_id,
+                        f"Matched {matched_count} contact(s). Using Customer ID: {customer_id}\n\n" + formatted,
+                    )
+                else:
+                    post_webex_message(room_id, formatted)
+
+                return {"ok": True, "type": "attachmentAction", "result": result, "customer_id": customer_id}
             except Exception as e:
                 print(f"[ERROR] Rev.io get customer failed: {e}")
                 post_webex_message(room_id, f"Get customer failed. Error: {str(e)[:400]}")
