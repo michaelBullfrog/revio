@@ -374,11 +374,20 @@ def post_create_contact_card(room_id: str):
         "body": [
             {"type": "TextBlock", "text": "Create Contact", "weight": "Bolder", "size": "Large"},
             {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
-            {"type": "Input.Text", "id": "first_name", "label": "First Name"},
-            {"type": "Input.Text", "id": "last_name", "label": "Last Name"},
+            {"type": "Input.Text", "id": "name", "label": "Contact Name"},
             {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
             {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "mobile_number", "label": "Mobile Number"},
             {"type": "Input.Text", "id": "title", "label": "Title"},
+            {"type": "Input.Text", "id": "company", "label": "Company"},
+            {"type": "Input.Text", "id": "contact_type_id", "label": "Contact Type ID"},
+            {"type": "Input.Text", "id": "is_active", "label": "Is Active", "value": "true"},
+            {
+                "type": "Input.Text",
+                "id": "is_primary_customer_contact",
+                "label": "Primary Customer Contact",
+                "value": "false",
+            },
         ],
         "actions": [
             {"type": "Action.Submit", "title": "Create Contact", "data": {"action": "submit_create_contact"}}
@@ -520,25 +529,34 @@ def build_customer_payload(inputs: dict):
 
 
 
+def to_bool_or_default(value, default=False):
+    value = clean_value(value)
+    if value is None:
+        return default
+
+    return str(value).strip().lower() in ["true", "yes", "1", "y"]
+
+
 def build_contact_payload(inputs: dict):
     email = clean_value(inputs.get("email_address"))
-    phone = clean_value(inputs.get("phone_number"))
 
     payload = {
         "customerId": to_int_or_none(inputs.get("customer_id")),
-        "firstName": clean_value(inputs.get("first_name")),
-        "lastName": clean_value(inputs.get("last_name")),
+        "name": clean_value(inputs.get("name")),
+        "emailAddresses": [email] if email else [],
+        "phoneNumber": clean_value(inputs.get("phone_number")),
+        "isActive": to_bool_or_default(inputs.get("is_active"), True),
+        "isPrimaryCustomerContact": to_bool_or_default(
+            inputs.get("is_primary_customer_contact"),
+            False
+        ),
         "title": clean_value(inputs.get("title")),
-        "isActive": True,
-        "isPrimaryCustomerContact": False,
+        "mobileNumber": clean_value(inputs.get("mobile_number")),
+        "contactTypeId": to_int_or_none(inputs.get("contact_type_id")),
+        "company": clean_value(inputs.get("company")),
     }
 
-    if email:
-        payload["emailAddresses"] = [email]
-    if phone:
-        payload["phoneNumbers"] = [phone]
-
-    return {k: v for k, v in payload.items() if v is not None}
+    return {k: v for k, v in payload.items() if v is not None and v != []}
 
 
 def get_revio_contacts(name: str = None, email: str = None):
