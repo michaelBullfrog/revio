@@ -825,7 +825,7 @@ def create_revio_customer(inputs: dict):
 
 def get_revio_customers(name: str = None, email: str = None):
     headers = get_psa_headers()
-    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customers"
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/customer-summaries"
 
     params = {}
     if name:
@@ -880,7 +880,7 @@ def get_revio_customers(name: str = None, email: str = None):
 
 
 def search_revio_customers(name: str = None, email: str = None):
-    """Search customers using the working customer list endpoint, then filter locally."""
+    """Search customers using customer-summaries, then filter locally as a backup."""
     return get_revio_customers(name=name, email=email)
 
 
