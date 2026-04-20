@@ -350,13 +350,17 @@ def post_get_contacts_card(room_id: str):
         "version": "1.3",
         "body": [
             {"type": "TextBlock", "text": "Get Contacts", "weight": "Bolder", "size": "Large"},
-            {"type": "TextBlock", "text": "Customer ID is optional. Leave it blank to return contacts without a customer filter.", "wrap": True},
-            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID (optional)"},
-            {"type": "Input.Text", "id": "page", "label": "Page", "value": "1"},
-            {"type": "Input.Text", "id": "page_size", "label": "Page Size", "value": "10"},
+            {
+                "type": "TextBlock",
+                "text": "Search by name, email, or both.",
+                "wrap": True,
+                "spacing": "Small",
+            },
+            {"type": "Input.Text", "id": "contact_name", "label": "Name"},
+            {"type": "Input.Text", "id": "contact_email", "label": "Email"},
         ],
         "actions": [
-            {"type": "Action.Submit", "title": "Get Contacts", "data": {"action": "submit_get_contacts"}}
+            {"type": "Action.Submit", "title": "Search Contacts", "data": {"action": "submit_get_contacts"}}
         ],
     }
     return post_webex_card(room_id, "Get contacts form", card_content)
