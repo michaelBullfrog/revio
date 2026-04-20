@@ -529,6 +529,8 @@ def build_contact_payload(inputs: dict):
         "firstName": clean_value(inputs.get("first_name")),
         "lastName": clean_value(inputs.get("last_name")),
         "title": clean_value(inputs.get("title")),
+        "isActive": True,
+        "isPrimaryCustomerContact": False,
     }
 
     if email:
