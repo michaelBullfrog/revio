@@ -377,10 +377,17 @@ def post_create_contact_card(room_id: str):
             {"type": "Input.Text", "id": "name", "label": "Contact Name"},
             {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
             {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
-            {"type": "Input.Text", "id": "mobile_number", "label": "Mobile Number"},
-            {"type": "Input.Text", "id": "title", "label": "Title"},
-            {"type": "Input.Text", "id": "company", "label": "Company"},
-            {"type": "Input.Text", "id": "contact_type_id", "label": "Contact Type ID"},
+            {
+                "type": "Input.ChoiceSet",
+                "id": "contact_type_id",
+                "label": "Contact Type",
+                "style": "compact",
+                "value": "1",
+                "choices": [
+                    {"title": "Technical", "value": "1"},
+                    {"title": "Billing", "value": "2"},
+                ],
+            },
             {"type": "Input.Text", "id": "is_active", "label": "Is Active", "value": "true"},
             {
                 "type": "Input.Text",
@@ -390,7 +397,11 @@ def post_create_contact_card(room_id: str):
             },
         ],
         "actions": [
-            {"type": "Action.Submit", "title": "Create Contact", "data": {"action": "submit_create_contact"}}
+            {
+                "type": "Action.Submit",
+                "title": "Create Contact",
+                "data": {"action": "submit_create_contact"},
+            }
         ],
     }
     return post_webex_card(room_id, "Create contact form", card_content)
@@ -550,10 +561,7 @@ def build_contact_payload(inputs: dict):
             inputs.get("is_primary_customer_contact"),
             False
         ),
-        "title": clean_value(inputs.get("title")),
-        "mobileNumber": clean_value(inputs.get("mobile_number")),
         "contactTypeId": to_int_or_none(inputs.get("contact_type_id")),
-        "company": clean_value(inputs.get("company")),
     }
 
     return {k: v for k, v in payload.items() if v is not None and v != []}
