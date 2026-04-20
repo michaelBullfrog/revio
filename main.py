@@ -20,7 +20,7 @@ BOT_PERSON_ID = None
 
 @app.get("/")
 def home():
-    return {"ok": True, "message": "Webex opportunities and customers bot is running"}
+    return {"ok": True, "message": "Webex opportunities, customers, and contacts bot is running"}
 
 
 @app.get("/health")
@@ -117,6 +117,7 @@ def post_main_menu_card(room_id: str):
         "actions": [
             {"type": "Action.Submit", "title": "Opportunities", "data": {"action": "show_opportunities_menu"}},
             {"type": "Action.Submit", "title": "Customers", "data": {"action": "show_customers_menu"}},
+            {"type": "Action.Submit", "title": "Contacts", "data": {"action": "show_contacts_menu"}},
             {"type": "Action.Submit", "title": "Help", "data": {"action": "show_help_menu"}},
         ],
     }
@@ -135,6 +136,7 @@ def post_help_card(room_id: str):
                 "text": (
                     "• Opportunities - Open the opportunities menu\n"
                     "• Customers - Open the customers menu\n"
+                    "• Contacts - Open the contacts menu\n"
                     "• Help - Show this help card\n"
                     "• Mention the bot - Show the main menu card"
                 ),
@@ -144,6 +146,7 @@ def post_help_card(room_id: str):
         "actions": [
             {"type": "Action.Submit", "title": "Open Opportunities", "data": {"action": "show_opportunities_menu"}},
             {"type": "Action.Submit", "title": "Open Customers", "data": {"action": "show_customers_menu"}},
+            {"type": "Action.Submit", "title": "Open Contacts", "data": {"action": "show_contacts_menu"}},
         ],
     }
     return post_webex_card(room_id, "Help menu", card_content)
@@ -193,6 +196,29 @@ def post_customers_menu_card(room_id: str):
         ],
     }
     return post_webex_card(room_id, "Customer menu", card_content)
+
+
+
+def post_contacts_menu_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Bullfrog Contacts", "weight": "Bolder", "size": "Large"},
+            {
+                "type": "TextBlock",
+                "text": "Choose which contact action you want to continue with.",
+                "wrap": True,
+                "spacing": "Small",
+            },
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Get Contacts", "data": {"action": "show_get_contacts"}},
+            {"type": "Action.Submit", "title": "Create Contact", "data": {"action": "show_create_contact"}},
+        ],
+    }
+    return post_webex_card(room_id, "Contacts menu", card_content)
 
 
 def post_create_opportunity_card(room_id: str):
@@ -314,6 +340,47 @@ def post_get_customer_card(room_id: str):
         ],
     }
     return post_webex_card(room_id, "Get customer form", card_content)
+
+
+
+def post_get_contacts_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Get Contacts", "weight": "Bolder", "size": "Large"},
+            {"type": "TextBlock", "text": "Customer ID is optional. Leave it blank to return contacts without a customer filter.", "wrap": True},
+            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID (optional)"},
+            {"type": "Input.Text", "id": "page", "label": "Page", "value": "1"},
+            {"type": "Input.Text", "id": "page_size", "label": "Page Size", "value": "10"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Get Contacts", "data": {"action": "submit_get_contacts"}}
+        ],
+    }
+    return post_webex_card(room_id, "Get contacts form", card_content)
+
+
+def post_create_contact_card(room_id: str):
+    card_content = {
+        "type": "AdaptiveCard",
+        "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+        "version": "1.3",
+        "body": [
+            {"type": "TextBlock", "text": "Create Contact", "weight": "Bolder", "size": "Large"},
+            {"type": "Input.Text", "id": "customer_id", "label": "Customer ID"},
+            {"type": "Input.Text", "id": "first_name", "label": "First Name"},
+            {"type": "Input.Text", "id": "last_name", "label": "Last Name"},
+            {"type": "Input.Text", "id": "email_address", "label": "Email Address"},
+            {"type": "Input.Text", "id": "phone_number", "label": "Phone Number"},
+            {"type": "Input.Text", "id": "title", "label": "Title"},
+        ],
+        "actions": [
+            {"type": "Action.Submit", "title": "Create Contact", "data": {"action": "submit_create_contact"}}
+        ],
+    }
+    return post_webex_card(room_id, "Create contact form", card_content)
 
 
 def get_message(message_id: str):
@@ -446,6 +513,129 @@ def build_customer_payload(inputs: dict):
         payload["emailAddresses"] = [email]
 
     return {k: v for k, v in payload.items() if v is not None}
+
+
+
+def build_contact_payload(inputs: dict):
+    email = clean_value(inputs.get("email_address"))
+    phone = clean_value(inputs.get("phone_number"))
+
+    payload = {
+        "customerId": to_int_or_none(inputs.get("customer_id")),
+        "firstName": clean_value(inputs.get("first_name")),
+        "lastName": clean_value(inputs.get("last_name")),
+        "title": clean_value(inputs.get("title")),
+    }
+
+    if email:
+        payload["emailAddresses"] = [email]
+    if phone:
+        payload["phoneNumbers"] = [phone]
+
+    return {k: v for k, v in payload.items() if v is not None}
+
+
+def get_revio_contacts(inputs: dict):
+    headers = get_psa_headers()
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/contacts"
+
+    params = {}
+    customer_id = to_int_or_none(inputs.get("customer_id"))
+    page = to_int_or_none(inputs.get("page"))
+    page_size = to_int_or_none(inputs.get("page_size"))
+
+    # The public docs confirm this endpoint retrieves a paged and filtered list,
+    # but do not expose the exact query parameter schema. These are best-effort.
+    if customer_id:
+        params["customerId"] = customer_id
+    if page:
+        params["page"] = page
+    if page_size:
+        params["pageSize"] = page_size
+
+    print(f"[DEBUG] Get contacts URL: {url}")
+    print(f"[DEBUG] Get contacts params: {json.dumps(params)}")
+
+    r = requests.get(url, headers=headers, params=params or None, timeout=30)
+    print(f"[DEBUG] Get contacts status: {r.status_code}")
+    print(f"[DEBUG] Get contacts response: {r.text[:4000]}")
+    r.raise_for_status()
+    return r.json()
+
+
+def create_revio_contact(inputs: dict):
+    headers = get_psa_headers()
+    payload = build_contact_payload(inputs)
+    url = f"{REVIO_PSA_BASE_URL}/billing/api/v1/contacts"
+
+    print(f"[DEBUG] Create contact URL: {url}")
+    print(f"[DEBUG] Create contact payload: {json.dumps(payload)}")
+
+    r = requests.post(url, headers=headers, json=payload, timeout=30)
+    print(f"[DEBUG] Create contact status: {r.status_code}")
+    print(f"[DEBUG] Create contact response: {r.text[:4000]}")
+
+    if not r.ok:
+        raise Exception(f"Rev.io create contact {r.status_code}: {r.text[:1500]}")
+
+    return r.json() if r.text.strip() else {"ok": True}
+
+
+def _extract_list_from_response(response):
+    if isinstance(response, list):
+        return response
+    if isinstance(response, dict):
+        for key in ["items", "data", "results", "contacts", "records"]:
+            value = response.get(key)
+            if isinstance(value, list):
+                return value
+    return []
+
+
+def format_contact_item(contact: dict) -> str:
+    contact_id = contact.get("contactId") or contact.get("id") or contact.get("Id") or "N/A"
+    first_name = contact.get("firstName") or contact.get("FirstName") or ""
+    last_name = contact.get("lastName") or contact.get("LastName") or ""
+    name = contact.get("name") or contact.get("Name") or f"{first_name} {last_name}".strip() or "N/A"
+    customer_id = contact.get("customerId") or contact.get("CustomerId") or "N/A"
+    emails = contact.get("emailAddresses") or contact.get("emails") or []
+    phones = contact.get("phoneNumbers") or contact.get("phones") or []
+    title = contact.get("title") or contact.get("Title") or "N/A"
+
+    if isinstance(emails, list):
+        email_text = ", ".join(str(e) for e in emails) if emails else "N/A"
+    else:
+        email_text = str(emails) if emails else "N/A"
+
+    if isinstance(phones, list):
+        phone_text = ", ".join(str(p) for p in phones) if phones else "N/A"
+    else:
+        phone_text = str(phones) if phones else "N/A"
+
+    return (
+        f"Contact ID: {contact_id}\n"
+        f"Name: {name}\n"
+        f"Customer ID: {customer_id}\n"
+        f"Title: {title}\n"
+        f"Email: {email_text}\n"
+        f"Phone: {phone_text}"
+    )
+
+
+def format_contacts_details(response) -> str:
+    contacts = _extract_list_from_response(response)
+    if not contacts:
+        return f"Contacts response:\n{json.dumps(response, indent=2)}"
+
+    shown = contacts[:10]
+    lines = [f"Contacts Found: {len(contacts)}"]
+    for idx, contact in enumerate(shown, start=1):
+        lines.append(f"\nContact {idx}\n{format_contact_item(contact)}")
+
+    if len(contacts) > 10:
+        lines.append(f"\nShowing first 10 of {len(contacts)} contacts.")
+
+    return "\n".join(lines)
 
 
 def get_revio_opportunity(opportunity_id: str):
@@ -705,6 +895,8 @@ async def webex_webhook(request: Request):
             post_opportunity_menu_card(room_id)
         elif text == "customers":
             post_customers_menu_card(room_id)
+        elif text == "contacts":
+            post_contacts_menu_card(room_id)
         else:
             post_webex_message(
                 room_id,
@@ -737,6 +929,12 @@ async def webex_webhook(request: Request):
 
         if action_name == "show_customers_menu":
             post_customers_menu_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_contacts_menu":
+            post_contacts_menu_card(room_id)
             if original_message_id:
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
@@ -779,6 +977,18 @@ async def webex_webhook(request: Request):
 
         if action_name == "show_get_customer":
             post_get_customer_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_get_contacts":
+            post_get_contacts_card(room_id)
+            if original_message_id:
+                delete_webex_message(original_message_id)
+            return {"ok": True, "type": "attachmentAction", "action": action_name}
+
+        if action_name == "show_create_contact":
+            post_create_contact_card(room_id)
             if original_message_id:
                 delete_webex_message(original_message_id)
             return {"ok": True, "type": "attachmentAction", "action": action_name}
@@ -919,6 +1129,54 @@ async def webex_webhook(request: Request):
             except Exception as e:
                 print(f"[ERROR] Rev.io get customer failed: {e}")
                 post_webex_message(room_id, f"Get customer failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_get_contacts":
+            try:
+                result = get_revio_contacts(inputs)
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+
+                formatted = format_contacts_details(result)
+                post_webex_message(room_id, formatted)
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io get contacts failed: {e}")
+                post_webex_message(room_id, f"Get contacts failed. Error: {str(e)[:400]}")
+                return {"ok": False, "error": str(e)}
+
+        if action_name == "submit_create_contact":
+            customer_id = to_int_or_none(inputs.get("customer_id"))
+            if not customer_id:
+                post_webex_message(room_id, "Create contact failed. Customer ID is required.")
+                return {"ok": False, "error": "Missing customer ID"}
+
+            try:
+                result = create_revio_contact(inputs)
+                print(f"[DEBUG] Raw create contact result: {json.dumps(result)}", flush=True)
+
+                contact_id = (
+                    result.get("contactId")
+                    or result.get("ContactId")
+                    or result.get("id")
+                    or result.get("Id")
+                    or result.get("data", {}).get("contactId")
+                    or result.get("data", {}).get("ContactId")
+                    or result.get("data", {}).get("id")
+                    or result.get("data", {}).get("Id")
+                )
+
+                if original_message_id:
+                    delete_webex_message(original_message_id)
+
+                post_webex_message(
+                    room_id,
+                    f"Contact created successfully. Contact ID: {contact_id or 'not returned in create response'}"
+                )
+                return {"ok": True, "type": "attachmentAction", "result": result}
+            except Exception as e:
+                print(f"[ERROR] Rev.io create contact failed: {e}")
+                post_webex_message(room_id, f"Contact creation failed. Error: {str(e)[:400]}")
                 return {"ok": False, "error": str(e)}
 
         post_webex_message(room_id, "Unknown action received.")
